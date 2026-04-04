@@ -24,7 +24,7 @@ public class SbertProcessManager {
                     "--port", "8000"
             );
 
-            pb.directory(new File("C:\\Users\\PROBOOK\\OneDrive\\Desktop\\memoire_master\\server_sbert"));
+            pb.directory(new File("mongodbrecommendationsystem\\server_sbert"));
             pb.redirectErrorStream(true);
 
             process = pb.start();
