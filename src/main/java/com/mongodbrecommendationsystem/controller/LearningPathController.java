@@ -2,6 +2,7 @@ package com.mongodbrecommendationsystem.controller;
 
 import com.mongodbrecommendationsystem.entity.LearningPath;
 import com.mongodbrecommendationsystem.repository.LearningPathRepository;
+import com.mongodbrecommendationsystem.repository.LearningPathRepositoryCustom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +20,7 @@ import java.util.Set;
 public class LearningPathController {
 
     private final LearningPathRepository learningPathRepository;
+    private final LearningPathRepositoryCustom learningPathRepositoryCustom;
 
     @PostMapping("/save/one")
     public LearningPath saveCourse(@RequestBody LearningPath learningPath) {
@@ -38,6 +40,21 @@ public class LearningPathController {
     @GetMapping("/find/all")
     public List<LearningPath> getAllCourses() {
         return learningPathRepository.findAll();
+    }
+
+    @GetMapping("/find/all/domains")
+    public List<String> getAllDomains() {
+        return learningPathRepositoryCustom.findAllDistinctDomains();
+    }
+
+    @GetMapping("/find/all/levels")
+    public List<String> getAllLevels() {
+        return learningPathRepositoryCustom.findAllDistinctLevels();
+    }
+
+    @GetMapping("/find/all/languages")
+    public List<String> getAllLanguages() {
+        return learningPathRepositoryCustom.findAllDistinctLanguages();
     }
 
     private static final Set<String> STOP_WORDS = new HashSet<>(Arrays.asList(

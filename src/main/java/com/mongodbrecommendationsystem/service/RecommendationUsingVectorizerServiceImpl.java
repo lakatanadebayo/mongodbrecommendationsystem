@@ -31,6 +31,7 @@ public class RecommendationUsingVectorizerServiceImpl implements RecommendationU
         User user = OptionalUser.get();
 
         List<LearningPath> allCourses = learningPathRepository.findByLevelAndDomainAndLanguage(user.getLevel(), user.getDomain(), user.getLanguage());
+        System.out.println("Nombre de cours correspondant au niveau, domaine et langue de l'utilisateur : "+(allCourses.isEmpty()?0:allCourses.size()));
 
         if (allCourses.isEmpty()) {
             return List.of();
