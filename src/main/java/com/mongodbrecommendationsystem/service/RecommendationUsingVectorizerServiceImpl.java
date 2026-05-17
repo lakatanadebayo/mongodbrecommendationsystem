@@ -39,8 +39,8 @@ public class RecommendationUsingVectorizerServiceImpl implements RecommendationU
 
         // 2. Construire le profil textuel de l'utilisateur à partir des cours déjà complétés
         String userProfileText = allCourses.stream()
-                .filter(c -> user.getCompletedCoursesIds().contains(c.getSlug()))
-                .map(c -> String.join(" ", c.getTitle(), String.join(" ", c.getContent())))
+                .filter(c -> user.getCompletedCoursesIds().contains(c.getId()))
+                .map(c -> String.join(" ", c.getTitle(), String.join(" ", c.getContent()),  String.join(" ", c.getObjectives())))
                 .collect(Collectors.joining(" "));
 
         double[] userVector = vectorisationService.vectorizeTFIDF(userProfileText);
@@ -48,13 +48,13 @@ public class RecommendationUsingVectorizerServiceImpl implements RecommendationU
         // 3. Filtrer les cours éligibles (prérequis terminés)
         List<LearningPath> eligibleCourses = allCourses.stream()
                 .filter(c -> user.getCompletedCoursesIds().containsAll(c.getPrerequisiteCourseIds())
-                        && !user.getCompletedCoursesIds().contains(c.getSlug())) // pas déjà fait
+                        && !user.getCompletedCoursesIds().contains(c.getId())) // pas déjà fait
                 .collect(Collectors.toList());
 
         // 4. Calculer similarité TF-IDF et SBERT
         List<LearningPathScore> scoredCourses = new ArrayList<>();
         for (LearningPath course : eligibleCourses) {
-            String courseText = course.getTitle() + " " + String.join(" ", course.getContent());
+            String courseText = course.getTitle() + " " + String.join(" ", course.getContent()) + " " + String.join(" ", course.getObjectives());
             double similarity = vectorisationService.hybridSimilarity(userProfileText, courseText, 0.2);
             scoredCourses.add(new LearningPathScore(course, similarity));
         }

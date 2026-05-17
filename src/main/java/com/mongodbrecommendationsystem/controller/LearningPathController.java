@@ -8,10 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.text.Normalizer;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/cours")
@@ -40,6 +37,14 @@ public class LearningPathController {
     @GetMapping("/find/all")
     public List<LearningPath> getAllCourses() {
         return learningPathRepository.findAll();
+    }
+
+    @GetMapping("/find/{id}")
+    public ResponseEntity<Optional<LearningPath>> getLearningPathById(@PathVariable String id) {
+        Optional<LearningPath> learningPath = learningPathRepository.findById(id);
+        return learningPath.isPresent()
+                ? ResponseEntity.ok(learningPath)
+                : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/find/all/domains")
