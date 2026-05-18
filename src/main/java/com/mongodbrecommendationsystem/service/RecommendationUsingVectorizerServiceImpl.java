@@ -22,49 +22,110 @@ public class RecommendationUsingVectorizerServiceImpl implements RecommendationU
     @Override
     public List<LearningPath> recommendCoursesForUserUsingVectorizer(String username) {
 
-        Optional<User> OptionalUser = userRepository.findByUsername(username);
+        Optional<User> optionalUser = userRepository.findByUsername(username);
 
-        if (OptionalUser.isEmpty()) {
+        if (optionalUser.isEmpty()) {
             return List.of();
         }
 
-        User user = OptionalUser.get();
+        User user = optionalUser.get();
 
-        List<LearningPath> allCourses = learningPathRepository.findByLevelAndDomainAndLanguage(user.getLevel(), user.getDomain(), user.getLanguage());
-        System.out.println("Nombre de cours correspondant au niveau, domaine et langue de l'utilisateur : "+(allCourses.isEmpty()?0:allCourses.size()));
+        List<LearningPath> allCourses =
+                learningPathRepository.findByLevelAndDomainAndLanguage(
+                        user.getLevel(),
+                        user.getDomain(),
+                        user.getLanguage()
+                );
+
+        System.out.println("Nombre de cours correspondant au niveau, domaine et langue de l'utilisateur : "
+                + allCourses.size());
 
         if (allCourses.isEmpty()) {
             return List.of();
         }
 
-        // 2. Construire le profil textuel de l'utilisateur à partir des cours déjà complétés
+        // Construire le profil utilisateur
         String userProfileText = allCourses.stream()
                 .filter(c -> user.getCompletedCoursesIds().contains(c.getId()))
-                .map(c -> String.join(" ", c.getTitle(), String.join(" ", c.getContent()),  String.join(" ", c.getObjectives())))
+                .map(c -> String.join(" ",
+                        c.getTitle(),
+                        String.join(" ", c.getContent())))
                 .collect(Collectors.joining(" "));
 
-        double[] userVector = vectorisationService.vectorizeTFIDF(userProfileText);
-
-        // 3. Filtrer les cours éligibles (prérequis terminés)
+        // Filtrage des cours éligibles
         List<LearningPath> eligibleCourses = allCourses.stream()
-                .filter(c -> user.getCompletedCoursesIds().containsAll(c.getPrerequisiteCourseIds())
-                        && !user.getCompletedCoursesIds().contains(c.getId())) // pas déjà fait
+                .filter(course -> isCourseEligible(course, allCourses, user))
                 .collect(Collectors.toList());
 
-        // 4. Calculer similarité TF-IDF et SBERT
+        // Calcul des similarités
         List<LearningPathScore> scoredCourses = new ArrayList<>();
+
         for (LearningPath course : eligibleCourses) {
-            String courseText = course.getTitle() + " " + String.join(" ", course.getContent()) + " " + String.join(" ", course.getObjectives());
-            double similarity = vectorisationService.hybridSimilarity(userProfileText, courseText, 0.2);
+
+            String courseText =
+                    course.getTitle() + " " +
+                            String.join(" ", course.getContent());
+
+            double similarity = vectorisationService.hybridSimilarity(
+                    userProfileText,
+                    courseText,
+                    0.2
+            );
+
             scoredCourses.add(new LearningPathScore(course, similarity));
         }
 
-        // 5. Trier par similarité décroissante, puis par orderIndex croissant
-        scoredCourses.sort(Comparator
-                .comparingDouble(LearningPathScore::getScore).reversed()
-                .thenComparingInt(c -> c.getCourse().getOrderIndex() == null ? Integer.MAX_VALUE : c.getCourse().getOrderIndex())
+        // Tri
+        scoredCourses.sort(
+                Comparator.comparingDouble(LearningPathScore::getScore)
+                        .reversed()
+                        .thenComparingInt(c ->
+                                c.getCourse().getOrderIndex() == null
+                                        ? Integer.MAX_VALUE
+                                        : c.getCourse().getOrderIndex())
         );
 
-        return scoredCourses.stream().map(LearningPathScore::getCourse).collect(Collectors.toList());
+        return scoredCourses.stream()
+                .map(LearningPathScore::getCourse)
+                .collect(Collectors.toList());
+    }
+
+    private boolean isCourseEligible(
+            LearningPath course,
+            List<LearningPath> allCourses,
+            User user
+    ) {
+
+        // Déjà terminé
+        if (user.getCompletedCoursesIds().contains(course.getId())) {
+            return false;
+        }
+
+        // Vérification des prérequis classiques
+        if (course.getPrerequisiteCourseIds() != null &&
+                !user.getCompletedCoursesIds()
+                        .containsAll(course.getPrerequisiteCourseIds())) {
+            return false;
+        }
+
+        Integer currentOrder = course.getOrderIndex();
+
+        // Si pas d'ordre défini ou premier niveau
+        if (currentOrder == null || currentOrder <= 0) {
+            return true;
+        }
+
+        int previousOrder = currentOrder - 1;
+
+        // Tous les cours de l'ordre précédent
+        List<LearningPath> previousCourses = allCourses.stream()
+                .filter(c -> c.getOrderIndex() != null
+                        && c.getOrderIndex() == previousOrder)
+                .toList();
+
+        // Vérifier qu'ils sont tous complétés
+        return previousCourses.stream()
+                .allMatch(c ->
+                        user.getCompletedCoursesIds().contains(c.getId()));
     }
 }
